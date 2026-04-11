@@ -49,8 +49,13 @@ void *handle_client(void *arg) {
         if (bytes <= 0) {
             pthread_mutex_lock(&clients_mutex);
             if (clients[slot].active) {
-                printf("[SERVER] Desconexion inesperada de '%s'.\n",
-                       clients[slot].username);
+                if (strlen(clients[slot].username) > 0) {
+                    printf("[SERVER] Desconexion inesperada de '%s'.\n",
+                           clients[slot].username);
+                }
+                else {
+                    printf("[SERVER] Cliente no registrado desconectado.\n");
+                }
                 remove_client(slot);
             }
             pthread_mutex_unlock(&clients_mutex);
@@ -91,11 +96,18 @@ void *handle_client(void *arg) {
                 continue;
             }
 
-            int ip_idx = find_client_by_ip(clients[slot].ip);
-            if (ip_idx >= 0 && ip_idx != slot) {
-                pthread_mutex_unlock(&clients_mutex);
-                send_to_client(sockfd, "ERROR|REGISTER|IP_ALREADY_CONNECTED\n");
-                continue;
+            const char *allow_same_ip = getenv("CHAT_ALLOW_SAME_IP");
+            int enforce_unique_ip =
+                !(allow_same_ip && strcmp(allow_same_ip, "1") == 0);
+
+            if (enforce_unique_ip) {
+                int ip_idx = find_client_by_ip(clients[slot].ip);
+                if (ip_idx >= 0 && ip_idx != slot) {
+                    pthread_mutex_unlock(&clients_mutex);
+                    send_to_client(sockfd,
+                                   "ERROR|REGISTER|IP_ALREADY_CONNECTED\n");
+                    continue;
+                }
             }
 
             strncpy(clients[slot].username, name, USERNAME_MAX - 1);

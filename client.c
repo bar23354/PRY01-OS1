@@ -140,8 +140,9 @@ int main(int argc, char *argv[]) {
             break;
         }
         else if (input[0] != '/') {
-            snprintf(cmd, sizeof(cmd), "BROADCAST|%s\n", input);
-            send(sockfd, cmd, strlen(cmd), 0);
+            send(sockfd, "BROADCAST|", 10, 0);
+            send(sockfd, input, strlen(input), 0);
+            send(sockfd, "\n", 1, 0);
         }
         else {
             printf("Comando no reconocido. Escribe /help para ver los comandos.\n");

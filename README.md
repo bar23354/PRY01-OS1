@@ -63,6 +63,12 @@ gcc -Wall -Wextra -pthread -g -o chat_client client.c client_receive.c client_ui
 ./chat_server <puerto>
 ```
 
+Modo pruebas local (permite varios clientes desde la misma IP):
+
+```bash
+CHAT_ALLOW_SAME_IP=1 ./chat_server <puerto>
+```
+
 2. Conectar clientes (en otras terminales):
 
 ```bash

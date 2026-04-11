@@ -57,7 +57,13 @@ void broadcast_msg(const char *msg, int exclude_fd) {
 
 void remove_client(int idx) {
     if (idx >= 0 && idx < MAX_CLIENTS) {
-        printf("[SERVER] Usuario '%s' desconectado.\n", clients[idx].username);
+        if (strlen(clients[idx].username) > 0) {
+            printf("[SERVER] Usuario '%s' desconectado.\n",
+                   clients[idx].username);
+        }
+        else {
+            printf("[SERVER] Cliente sin registro desconectado.\n");
+        }
         close(clients[idx].sockfd);
         clients[idx].active = 0;
         clients[idx].sockfd = -1;
