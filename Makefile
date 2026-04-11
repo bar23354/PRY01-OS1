@@ -3,17 +3,25 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -pthread -g
+INCLUDES = -Iinclude
 
-SERVER_SRCS = server.c server_utils.c server_threads.c
-CLIENT_SRCS = client.c client_receive.c client_ui.c
+BIN_DIR = bin
 
-all: chat_server chat_client
+SERVER_SRCS = src/server/main.c src/server/utils.c src/server/threads.c
+CLIENT_SRCS = src/client/main.c src/client/receive.c src/client/ui.c
 
-chat_server: $(SERVER_SRCS)
-	$(CC) $(CFLAGS) -o chat_server $(SERVER_SRCS)
+SERVER_BIN = $(BIN_DIR)/chat_server
+CLIENT_BIN = $(BIN_DIR)/chat_client
 
-chat_client: $(CLIENT_SRCS)
-	$(CC) $(CFLAGS) -o chat_client $(CLIENT_SRCS)
+all: $(SERVER_BIN) $(CLIENT_BIN)
+
+$(SERVER_BIN): $(SERVER_SRCS)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(SERVER_BIN) $(SERVER_SRCS)
+
+$(CLIENT_BIN): $(CLIENT_SRCS)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(CLIENT_BIN) $(CLIENT_SRCS)
 
 clean:
-	rm -f chat_server chat_client
+	rm -f $(SERVER_BIN) $(CLIENT_BIN)

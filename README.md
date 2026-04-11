@@ -27,14 +27,18 @@ Este proyecto implementa un sistema de chat en C con:
 
 ## Estructura modular
 
-- `server.c`: punto de entrada del servidor.
-- `server.h`: tipos, constantes y prototipos compartidos del servidor.
-- `server_utils.c`: estado global y utilidades del servidor.
-- `server_threads.c`: hilos de inactividad y manejo de clientes.
-- `client.c`: punto de entrada del cliente.
-- `client.h`: constantes, estado compartido y prototipos del cliente.
-- `client_receive.c`: hilo receptor y parseo de respuestas del servidor.
-- `client_ui.c`: ayuda y salida de interfaz en consola.
+- `include/`: headers compartidos.
+	- `include/server.h`
+	- `include/client.h`
+- `src/server/`: codigo fuente del servidor.
+	- `src/server/main.c`
+	- `src/server/utils.c`
+	- `src/server/threads.c`
+- `src/client/`: codigo fuente del cliente.
+	- `src/client/main.c`
+	- `src/client/receive.c`
+	- `src/client/ui.c`
+- `bin/`: ejecutables generados (`chat_server`, `chat_client`).
 
 ## Requisitos
 
@@ -51,8 +55,9 @@ make
 Si no tienes `make`:
 
 ```bash
-gcc -Wall -Wextra -pthread -g -o chat_server server.c server_utils.c server_threads.c
-gcc -Wall -Wextra -pthread -g -o chat_client client.c client_receive.c client_ui.c
+mkdir -p bin
+gcc -Wall -Wextra -pthread -g -Iinclude -o bin/chat_server src/server/main.c src/server/utils.c src/server/threads.c
+gcc -Wall -Wextra -pthread -g -Iinclude -o bin/chat_client src/client/main.c src/client/receive.c src/client/ui.c
 ```
 
 ## Ejecucion
@@ -60,26 +65,26 @@ gcc -Wall -Wextra -pthread -g -o chat_client client.c client_receive.c client_ui
 1. Levantar el servidor:
 
 ```bash
-./chat_server <puerto>
+./bin/chat_server <puerto>
 ```
 
 Modo pruebas local (permite varios clientes desde la misma IP):
 
 ```bash
-CHAT_ALLOW_SAME_IP=1 ./chat_server <puerto>
+CHAT_ALLOW_SAME_IP=1 ./bin/chat_server <puerto>
 ```
 
 2. Conectar clientes (en otras terminales):
 
 ```bash
-./chat_client <usuario> <ip_servidor> <puerto>
+./bin/chat_client <usuario> <ip_servidor> <puerto>
 ```
 
 Ejemplo local:
 
 ```bash
-./chat_server 8080
-./chat_client Ana 127.0.0.1 8080
+./bin/chat_server 8080
+./bin/chat_client Ana 127.0.0.1 8080
 ```
 
 ## Comandos del cliente
