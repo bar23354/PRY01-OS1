@@ -140,6 +140,51 @@ make
 
 Usa cualquier nombre distinto para el usuario.
 
+## 7.1 Si PowerShell si conecta pero Ubuntu dice `No route to host`
+
+Este caso ya fue reproducido con WSL2 en modo NAT:
+
+- En Windows, `ping 192.168.50.10` y `Test-NetConnection 192.168.50.10 -Port 8080` pueden dar bien.
+- En Ubuntu/WSL, el cliente todavia puede fallar con `connect: No route to host`.
+
+La correccion recomendada para la PC cliente es mover WSL a `mirrored networking`.
+
+En PowerShell del cliente:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+@"
+[wsl2]
+networkingMode=mirrored
+dnsTunneling=true
+firewall=true
+"@ | Set-Content -Path "$env:USERPROFILE\.wslconfig"
+wsl --shutdown
+```
+
+Luego vuelve a abrir Ubuntu y verifica:
+
+```bash
+hostname -I
+ip route
+ping -c 3 192.168.50.10
+```
+
+Esperado:
+
+- WSL ya no queda solo en `172.x.x.x`.
+- Debe aparecer una ruta directa a `192.168.50.0/24`.
+- El `ping` al servidor debe responder.
+
+Despues prueba de nuevo:
+
+```bash
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+```
+
+No apliques este cambio en la PC servidor si ya te esta funcionando con `portproxy`; aqui solo hace falta en la PC cliente.
+
 ## 8. Prueba minima funcional
 
 En el cliente:
