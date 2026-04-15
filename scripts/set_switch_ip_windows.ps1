@@ -13,7 +13,20 @@ if (-not $isAdmin) {
     throw "Ejecuta este script en PowerShell como Administrador."
 }
 
-$adapter = Get-NetAdapter -Name $AdapterAlias -ErrorAction Stop
+$adapter = Get-NetAdapter -Name $AdapterAlias -ErrorAction SilentlyContinue
+if (-not $adapter) {
+    $available = Get-NetAdapter -Physical | Sort-Object Name |
+        Select-Object -ExpandProperty Name
+    $availableText = if ($available) {
+        $available -join ", "
+    }
+    else {
+        "(sin adaptadores fisicos detectados)"
+    }
+
+    throw "No existe un adaptador llamado '$AdapterAlias'. Disponibles: $availableText"
+}
+
 if ($adapter.Status -ne "Up") {
     Write-Warning "El adaptador '$AdapterAlias' no esta en estado Up. Estado actual: $($adapter.Status)"
 }
@@ -30,10 +43,18 @@ foreach ($entry in $existing) {
     }
 }
 
-New-NetIPAddress -InterfaceAlias $AdapterAlias `
-    -IPAddress $IpAddress `
-    -PrefixLength $PrefixLength `
-    -AddressFamily IPv4 `
-    -ErrorAction Stop | Out-Null
+Start-Sleep -Milliseconds 500
+
+$current = Get-NetIPAddress -InterfaceAlias $AdapterAlias -AddressFamily IPv4 `
+    -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -eq $IpAddress -and $_.PrefixLength -eq $PrefixLength }
+
+if (-not $current) {
+    New-NetIPAddress -InterfaceAlias $AdapterAlias `
+        -IPAddress $IpAddress `
+        -PrefixLength $PrefixLength `
+        -AddressFamily IPv4 `
+        -ErrorAction Stop | Out-Null
+}
 
 Write-Host "IP estatica configurada en $AdapterAlias -> $IpAddress/$PrefixLength"

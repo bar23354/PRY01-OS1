@@ -101,3 +101,7 @@ Ejemplo local:
 
 Si esta computadora sera el servidor y otra computadora sera el cliente,
 usa la guia paso a paso en [docs/guia-switch-2pc.md](docs/guia-switch-2pc.md).
+
+Nota: si abres PowerShell como Administrador, probablemente inicie en
+`C:\Windows\System32`; en ese caso usa rutas absolutas para los scripts o
+hace `Set-Location` al repo antes de correr `.\scripts\...`.
