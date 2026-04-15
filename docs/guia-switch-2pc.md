@@ -185,6 +185,63 @@ cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
 
 No apliques este cambio en la PC servidor si ya te esta funcionando con `portproxy`; aqui solo hace falta en la PC cliente.
 
+## 7.2 Si `mirrored mode` no se activa
+
+Si despues de crear `%UserProfile%\.wslconfig` y ejecutar `wsl --shutdown` sigues viendo algo como esto en Ubuntu:
+
+```bash
+hostname -I
+172.x.x.x
+
+ip route
+default via 172.x.x.1 dev eth0
+```
+
+entonces WSL sigue en NAT y la configuracion fue ignorada.
+
+La salida mas comun en ese caso es:
+
+- En Windows, `ping 192.168.50.10` funciona.
+- En Ubuntu, `ping 192.168.50.10` da `Destination Host Unreachable`.
+- El cliente muestra `connect: No route to host`.
+
+### Fallback recomendado para la PC cliente: usar WSL 1
+
+WSL 1 comparte la pila de red de Windows, asi que si Windows cliente ya llega a `192.168.50.10:8080`, el cliente de chat en WSL 1 normalmente tambien puede llegar.
+
+Antes de cambiar de version, revisa la version actual:
+
+```powershell
+wsl -l -v
+```
+
+Luego convierte solo Ubuntu del cliente a WSL 1:
+
+```powershell
+wsl --set-version Ubuntu 1
+```
+
+Notas:
+
+- Segun Microsoft, cambiar entre WSL 1 y WSL 2 puede tardar y puede fallar en algunos casos.
+- En este proyecto el repo esta en `C:\Users\Roberto\Documents\GitHub\PRY01-OS1`, asi que los archivos del proyecto no dependen del disco interno de la distro.
+- Haz este cambio solo en la PC cliente.
+
+Cuando termine, vuelve a abrir Ubuntu y valida:
+
+```bash
+hostname -I
+ip route
+ping -c 3 192.168.50.10
+```
+
+Luego prueba el cliente:
+
+```bash
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+```
+
 ## 8. Prueba minima funcional
 
 En el cliente:
