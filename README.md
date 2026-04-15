@@ -106,6 +106,22 @@ Ejemplo local:
 - `/help`
 - `/quit`
 
+## Consola del servidor
+
+Mientras el servidor esta corriendo, su propia terminal acepta comandos
+similares a los del cliente:
+
+- `/broadcast <mensaje>` o `/message <mensaje>`
+- `/msg <usuario> <mensaje>`
+- `/status <ACTIVO|OCUPADO|INACTIVO>`
+- `/list` o `/lis`
+- `/info <usuario>`
+- `/help`
+- `/quit`
+
+El servidor muestra logs de conexiones, comandos recibidos y acciones
+ejecutadas para facilitar la presentacion y depuracion.
+
 ## Guia para 2 PCs por switch
 
 Si esta computadora sera el servidor y otra computadora sera el cliente,

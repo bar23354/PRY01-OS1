@@ -84,6 +84,14 @@ int main(int argc, char *argv[]) {
     }
     pthread_detach(inact_thread);
 
+    pthread_t console_thread;
+    if (pthread_create(&console_thread, NULL, server_console_loop, NULL) != 0) {
+        perror("pthread_create");
+        close(server_fd);
+        return EXIT_FAILURE;
+    }
+    pthread_detach(console_thread);
+
     while (server_running) {
         struct sockaddr_in cli_addr;
         socklen_t cli_len = sizeof(cli_addr);

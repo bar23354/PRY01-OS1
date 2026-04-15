@@ -143,7 +143,7 @@ En Ubuntu/WSL de la otra PC:
 ```bash
 cd /mnt/c/RUTA/AL/REPO/PRY01-OS1
 make
-./bin/chat_client Ana 192.168.50.10 8080
+./bin/chat_client Bobby 192.168.50.10 8080
 ```
 
 Usa cualquier nombre distinto para el usuario.

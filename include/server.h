@@ -42,6 +42,7 @@ void remove_client(int idx);
 
 void *inactivity_checker(void *arg);
 void *handle_client(void *arg);
+void *server_console_loop(void *arg);
 void handle_sigint(int sig);
 
 #endif
