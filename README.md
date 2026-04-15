@@ -96,3 +96,8 @@ Ejemplo local:
 - `/info <usuario>`
 - `/help`
 - `/quit`
+
+## Guia para 2 PCs por switch
+
+Si esta computadora sera el servidor y otra computadora sera el cliente,
+usa la guia paso a paso en [docs/guia-switch-2pc.md](docs/guia-switch-2pc.md).

@@ -1,0 +1,809 @@
+Necesito que a un nivel de detalle muy fuerte crees una guia paso a paso de como hacer funcionar este proyecto. Como y de donde sacar IPs, en que terminales correr que comandos, desconectarse de la red de wifi, Control Panel\Network and Internet\Network Connections quitar la IPs dinamicas, ver temas de firewall... todo
+
+Optimizing tool selection...
+
+Voy a revisar el código real del cliente y servidor para construir una guía operativa muy detallada y 100% alineada con los comandos y comportamientos implementados. Después te entrego un procedimiento completo para pruebas en una sola máquina y en varias máquinas en red local, incluyendo IP estática y firewall.
+
+Ya confirmé el protocolo real del servidor/cliente; ahora voy a revisar cómo imprime respuestas y errores el cliente para que la guía incluya exactamente qué deberías ver en pantalla en cada paso.
+
+Guía completa, súper detallada, para hacer funcionar tu proyecto de chat multihilo
+
+Esta guía está alineada con cómo está implementado tu código actualmente:
+
+Servidor: recibe solo un argumento (puerto).
+Cliente: recibe 3 argumentos (usuario, IP servidor, puerto).
+El servidor por defecto no acepta dos clientes desde la misma IP.
+Timeout de inactividad: 60 segundos.
+1. Mapa mental antes de empezar
+
+Necesitas 1 servidor y 1 o más clientes.
+Todos deben estar en la misma red local (normalmente por cable Ethernet en clase).
+Cada máquina cliente se conecta a la IP del servidor y al mismo puerto.
+Si pruebas todo en una sola máquina, debes habilitar variable de entorno para permitir misma IP.
+Ejemplo de topología para clase:
+
+PC Servidor: 192.168.50.10
+PC Cliente 1: 192.168.50.11
+PC Cliente 2: 192.168.50.12
+Máscara: 255.255.255.0
+Gateway: vacío o el que indique el instructor
+2. Preparación física de red (muy importante)
+
+Conecta cable RJ45 en todas las máquinas.
+Desactiva Wi-Fi en todas las máquinas para evitar que Windows enrute tráfico por otro adaptador.
+Cómo desactivar Wi-Fi en Windows:
+
+Presiona Win + R.
+Escribe: ncpa.cpl
+Enter.
+En Network Connections, clic derecho en Wi-Fi.
+Selecciona Disable.
+Deja solo Ethernet habilitado.
+Resultado esperado:
+
+Solo Ethernet activo.
+Wi-Fi deshabilitado.
+3. Poner IP estática en Windows (quitar dinámica/DHCP)
+
+Haz esto en cada máquina (servidor y clientes) con una IP distinta.
+
+Ruta:
+
+Control Panel
+Network and Internet
+Network and Sharing Center
+Change adapter settings
+Clic derecho en Ethernet, Properties
+Doble clic en Internet Protocol Version 4 (TCP/IPv4)
+Selecciona Use the following IP address
+Llena campos
+Ejemplo para servidor:
+
+IP address: 192.168.50.10
+Subnet mask: 255.255.255.0
+Default gateway: vacío (o el que te den)
+DNS: vacío para esta práctica
+Ejemplo para cliente 1:
+
+IP address: 192.168.50.11
+Subnet mask: 255.255.255.0
+Ejemplo para cliente 2:
+
+IP address: 192.168.50.12
+Subnet mask: 255.255.255.0
+Acepta y cierra todo.
+Resultado esperado:
+
+Cada máquina tiene IP fija única.
+Todos están en la misma subred.
+4. De dónde sacar la IP y cómo verificarla
+
+En cada Windows (PowerShell o CMD):
+ipconfig
+
+Busca:
+
+Ethernet adapter
+IPv4 Address
+Pruebas básicas de conectividad:
+Desde cliente hacia servidor:
+ping 192.168.50.10
+
+Resultado esperado:
+
+Respuestas con latencia.
+Si no responde, revisar cable, IP estática o firewall.
+También puedes probar puerto del servidor (cuando ya esté levantado):
+En PowerShell del cliente:
+Test-NetConnection 192.168.50.10 -Port 8080
+
+Resultado esperado:
+
+TcpTestSucceeded : True
+5. Entorno de compilación (Windows + WSL recomendado)
+
+Tu proyecto usa sockets y pthread POSIX, así que la ruta más estable en Windows es WSL con Ubuntu.
+
+En cada máquina donde se vaya a ejecutar cliente o servidor:
+
+Abrir terminal WSL (Ubuntu).
+
+Instalar herramientas:
+sudo apt update
+sudo apt install -y build-essential make
+
+Entrar al proyecto:
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+
+Si ese path cambia en otra máquina, ajustarlo al usuario correspondiente.
+
+6. Compilar
+
+En WSL, dentro del proyecto:
+make clean
+make
+
+Resultado esperado:
+
+Se generan bin/chat_server y bin/chat_client sin errores.
+Si make no está:
+mkdir -p bin
+gcc -Wall -Wextra -pthread -g -Iinclude -o bin/chat_server main.c utils.c threads.c
+gcc -Wall -Wextra -pthread -g -Iinclude -o bin/chat_client main.c receive.c ui.c
+
+7. Firewall (paso crítico en máquina servidor)
+
+Si el servidor corre en Linux nativo:
+sudo ufw allow 8080/tcp
+sudo ufw status
+
+Si el servidor corre en Windows/WSL, abre puerto en Firewall de Windows:
+
+Windows Defender Firewall with Advanced Security.
+Inbound Rules.
+New Rule.
+Rule Type: Port.
+TCP.
+Specific local ports: 8080
+Allow the connection.
+Perfiles: Private y Domain.
+Nombre: Chat Server 8080.
+Alternativa por PowerShell (Administrador):
+New-NetFirewallRule -DisplayName "Chat Server 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow -Profile Private,Domain
+
+Resultado esperado:
+
+El puerto no queda bloqueado para conexiones entrantes.
+8. Si el servidor corre dentro de WSL2 y clientes están en otras PCs
+
+Este caso necesita forwarding porque WSL2 suele estar detrás de NAT.
+
+En PowerShell de Windows (Administrador):
+
+Obtén IP de WSL:
+wsl hostname -I
+Ejemplo resultado: 172.28.101.45
+
+Borra regla vieja (si existe):
+netsh interface portproxy delete v4tov4 listenport=8080 listenaddress=0.0.0.0
+
+Crea regla nueva:
+netsh interface portproxy add v4tov4 listenport=8080 listenaddress=0.0.0.0 connectport=8080 connectaddress=172.28.101.45
+
+Verifica:
+netsh interface portproxy show all
+
+Importante:
+
+Cada reinicio de WSL puede cambiar la IP interna, toca rehacer paso 1 y 3.
+Los clientes deben conectarse a la IP Ethernet de Windows (ejemplo 192.168.50.10), no a la 172.x de WSL.
+9. En qué terminal correr cada comando (exacto)
+
+Escenario de clase con varias máquinas:
+
+Terminal S (máquina servidor, WSL):
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+make
+./bin/chat_server 8080
+
+Terminal C1 (máquina cliente 1, WSL):
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+make
+./bin/chat_client Ana 192.168.50.10 8080
+
+Terminal C2 (máquina cliente 2, WSL):
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+make
+./bin/chat_client Luis 192.168.50.10 8080
+
+Puedes agregar más clientes en más terminales/máquinas con nombres distintos.
+
+Escenario local en una sola máquina (solo para pruebas rápidas):
+Terminal 1:
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+CHAT_ALLOW_SAME_IP=1 ./bin/chat_server 8080
+
+Terminal 2:
+./bin/chat_client Ana 127.0.0.1 8080
+
+Terminal 3:
+./bin/chat_client Luis 127.0.0.1 8080
+
+Sin CHAT_ALLOW_SAME_IP=1, el segundo cliente desde la misma IP será rechazado.
+
+10. Prueba funcional completa (script de demo)
+
+Después de conectar 2 clientes:
+
+En cliente Ana:
+/list
+Esperado: lista de usuarios conectados.
+
+En cliente Ana:
+/info Luis
+Esperado: nombre, IP y status de Luis.
+
+En cliente Luis:
+/status OCUPADO
+Esperado: confirmación de cambio.
+
+En cliente Ana:
+/broadcast Hola a todos
+Esperado: todos los demás reciben mensaje general.
+
+En cliente Ana:
+/msg Luis Hola en privado
+Esperado: Luis recibe mensaje privado y Ana recibe confirmación de envío.
+
+Espera 60+ segundos sin actividad en un cliente.
+Esperado: servidor lo marca INACTIVO y cliente recibe actualización.
+
+Escribe algo en ese cliente.
+Esperado: vuelve a ACTIVO automáticamente.
+
+En cliente Luis:
+/quit
+Esperado: cierre limpio del cliente y salida del listado de usuarios.
+
+11. Cierre ordenado
+
+En cada cliente:
+/quit
+
+En servidor:
+
+Presiona Ctrl + C.
+El servidor enviará aviso de cierre y termina limpio.
+
+12. Fallas comunes y cómo resolver rápido
+
+Error connect refused.
+Servidor no está corriendo o puerto incorrecto.
+Verifica que el servidor esté en 8080 y cliente apunte al mismo puerto.
+No conecta entre PCs, pero ping sí responde.
+Firewall bloqueando puerto TCP.
+Falta regla inbound.
+Si usas WSL2, falta portproxy o quedó con IP WSL vieja.
+ERROR REGISTER USERNAME_TAKEN.
+El nombre ya existe.
+Usa otro usuario.
+ERROR REGISTER IP_ALREADY_CONNECTED.
+Dos clientes desde misma IP.
+Para prueba local en una sola máquina, levanta servidor con CHAT_ALLOW_SAME_IP=1.
+Cliente se cae al rato sin escribir.
+Timeout por inactividad (60 segundos).
+Es comportamiento esperado: pasa a INACTIVO.
+Comando no reconocido.
+Usa exactamente:
+/broadcast
+/msg
+/status
+/list
+/info
+/help
+/quit
+13. Volver a configuración normal (después de la práctica)
+
+Para reactivar DHCP:
+
+Control Panel > Network and Internet > Network Connections.
+Ethernet > Properties > IPv4 > Properties.
+Selecciona Obtain an IP address automatically.
+Selecciona Obtain DNS server address automatically.
+Acepta.
+Si necesitas internet, vuelve a habilitar Wi-Fi.
+14. Checklist final para ir a clase
+
+Cada integrante lleva cable RJ45.
+Todos tienen el repo y compila con make.
+Tienen plan de IPs estáticas escrito antes de conectar.
+Wi-Fi desactivado durante la demo.
+Puerto definido (ejemplo 8080) y libre.
+Firewall con regla inbound aplicada.
+Script de demo practicado en orden: list, info, status, broadcast, privado, quit.
+Si quieres, en el siguiente paso te puedo dar una versión ultra práctica tipo “chuleta de laboratorio” de 1 sola página: solo comandos exactos por rol (Servidor, Cliente 1, Cliente 2) para ejecutar durante la presentación sin pensar.
+
+GPT-5.3-Codex • 1x
+
+
+El error actual es de conectividad de red, no de compilación.
+Tu proyecto compila bien en ambas máquinas. El fallo clave es este:
+
+El servidor está corriendo dentro de WSL2 (IP interna 172.17.x.x).
+El cliente intenta llegar a 192.168.50.10, pero esa ruta no existe desde su máquina.
+En WSL2, para que otra PC entre al servidor, necesitas publicar el puerto desde Windows hacia WSL.
+Haz esto exacto, en este orden.
+
+Levanta servidor en WSL (máquina servidor)
+En Ubuntu del servidor:
+
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+./bin/chat_server 8080
+
+Déjalo corriendo.
+
+Configura port forwarding en Windows del servidor (PowerShell como Administrador)
+Importante: esto NO se corre dentro de Ubuntu, se corre en PowerShell de Windows.
+
+wsl hostname -I
+
+Guarda la primera IP que salga, por ejemplo 172.17.99.247.
+
+Ahora ejecuta:
+
+Luego abre firewall:
+
+Obtén la IP REAL de Windows servidor (la que usa la red cableada)
+En PowerShell del servidor:
+
+ipconfig
+
+Busca Ethernet adapter y toma su IPv4 (ejemplo 192.168.50.10).
+Usa esa IP en el cliente.
+No uses 172.17.x.x en otra PC.
+
+Verifica red antes de correr cliente
+En Windows de la máquina cliente:
+
+ping 192.168.50.10
+Test-NetConnection 192.168.50.10 -Port 8080
+
+Si ping falla o TcpTestSucceeded da False, el chat no va a conectar todavía.
+
+Conecta cliente desde Ubuntu de la máquina cliente
+En Ubuntu del cliente:
+
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+
+Si sigue saliendo No route to host
+Revisa estos puntos estrictamente:
+
+Ambas PCs con Ethernet activo y en misma subred.
+
+Wi-Fi desactivado en ambas.
+
+IP estática correcta:
+
+servidor: 192.168.50.10/24
+cliente: 192.168.50.11/24
+No duplicar IP.
+
+Portproxy creado con la IP actual de WSL (cambia al reiniciar WSL).
+
+Firewall abierto en servidor para TCP 8080.
+
+El servidor realmente está corriendo cuando pruebas.
+
+Prueba rápida para aislar si la app está bien
+En la misma máquina del servidor, abre otra terminal Ubuntu y corre:
+
+./bin/chat_client prueba 127.0.0.1 8080
+
+Si esto conecta, la app está bien y el problema es solo red/forwarding.
+
+Si quieres, te doy ahora mismo un checklist de 60 segundos para ejecutar en clase (Servidor Windows + Servidor WSL + Cliente Windows + Cliente WSL) y detectar en qué capa exacta se rompe.
+
+
+La causa quedó identificada correctamente: antes estabas ejecutando comandos sobre docker-desktop (BusyBox), y ahora ya estás apuntando a Ubuntu WSL2, por eso ya obtuviste la IP real de WSL: 172.17.99.247.
+
+Ahora sigue este flujo exacto.
+
+En PowerShell de Windows del servidor (Administrador), crea el puente de puerto hacia WSL
+sc query iphlpsvc
+netsh interface portproxy delete v4tov4 listenaddress=0.0.0.0 listenport=8080
+netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=8080 connectaddress=172.17.99.247 connectport=8080
+netsh interface portproxy show all
+Si iphlpsvc no está Running:
+Start-Service iphlpsvc
+
+En ese mismo PowerShell del servidor, abre firewall para el puerto
+netsh advfirewall firewall add rule name="Chat 8080 In" dir=in action=allow protocol=TCP localport=8080
+netsh advfirewall firewall add rule name="Chat 8080 Out" dir=out action=allow protocol=TCP localport=8080
+
+En Ubuntu del servidor, deja el chat corriendo
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+./bin/chat_server 8080
+
+En Windows del servidor, saca la IP Ethernet que usará el cliente
+ipconfig
+
+Usa la IPv4 de Ethernet (ejemplo 192.168.50.10).
+Esa es la IP que debe usar el cliente, no la 172.17.x.x.
+
+En Windows de la máquina cliente, valida red antes del chat
+ping 192.168.50.10
+Test-NetConnection 192.168.50.10 -Port 8080
+Si TcpTestSucceeded da False, todavía es problema de red/firewall/portproxy.
+
+En Ubuntu del cliente, conecta el cliente
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+Si vuelve a salir No route to host, el siguiente diagnóstico mínimo (sin adivinar) es:
+
+En Windows cliente: ping 192.168.50.10
+En Ubuntu cliente: ping -c 3 192.168.50.10
+En Windows servidor: netsh interface portproxy show all
+En Windows servidor: Test-NetConnection 0.0.0.0 -Port 8080
+En Ubuntu servidor: ss -tulpen | grep 8080
+Pásame esos 5 resultados y te digo exactamente en qué capa está roto (ruta, firewall, portproxy o proceso).
+
+
+Perfecto, con esos logs ya se ve exactamente dónde está roto: la red, no el código.
+
+Diagnóstico confirmado con evidencia de tus logs:
+
+Cliente PowerShell usa interfaz Wi-Fi, origen 192.168.5.234.
+Estás intentando llegar a 192.168.50.10.
+Eso produce No route to host y DestinationHostUnreachable.
+El servidor sí compila y sí levanta en 8080.
+La app está bien; falta que ambas PCs realmente compartan la misma red de capa 3.
+Plan de recuperación limpio (hazlo exactamente así)
+
+Servidor Windows: dejar solo Ethernet para esta prueba
+En PowerShell como Administrador, en la PC servidor:
+
+Disable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+Disable-NetAdapter -Name "Wi-Fi 3" -Confirm:$false -ErrorAction SilentlyContinue
+Disable-NetAdapter -Name "Wi-Fi 4" -Confirm:$false -ErrorAction SilentlyContinue
+
+Cliente Windows: dejar solo Ethernet para esta prueba
+En PowerShell como Administrador, en la PC cliente:
+
+Disable-NetAdapter -Name "Wi-Fi" -Confirm:$false
+Disable-NetAdapter -Name "Wi-Fi 3" -Confirm:$false -ErrorAction SilentlyContinue
+Disable-NetAdapter -Name "Wi-Fi 4" -Confirm:$false -ErrorAction SilentlyContinue
+
+Configurar IP estática en Ethernet de ambas PCs
+Servidor (PowerShell admin):
+
+netsh interface ipv4 set address name="Ethernet" static 192.168.50.10 255.255.255.0
+
+Cliente (PowerShell admin):
+
+Importante:
+
+No pongas esa IP en vEthernet (WSL...).
+
+No uses 191.168.x.x por error tipográfico.
+
+Solo Ethernet físico debe quedar en 192.168.50.x.
+
+Corregir vEthernet de WSL si se alteró
+En servidor (PowerShell admin):
+
+netsh interface ipv4 set address name="vEthernet (WSL (Hyper-V firewall))" source=dhcp
+
+Validar IPs reales antes de seguir
+En ambas PCs (PowerShell):
+
+ipconfig
+
+Esperado:
+
+Servidor Ethernet: 192.168.50.10
+
+Cliente Ethernet: 192.168.50.11
+
+Wi-Fi: Media disconnected
+
+vEthernet WSL: 172.x.x.x (no 192.168.50.x)
+
+Probar alcance entre Windows primero (sin WSL todavía)
+En cliente PowerShell:
+
+ping 192.168.50.10
+
+Si esto falla, no avances a chat todavía.
+
+En servidor, rearmar portproxy correctamente
+En servidor PowerShell admin:
+
+wsl -d Ubuntu -- hostname -I
+
+Toma la primera IP de Ubuntu (ejemplo 172.17.99.247), luego:
+
+Firewall servidor
+En servidor PowerShell admin:
+
+netsh advfirewall firewall add rule name="Chat 8080 In" dir=in action=allow protocol=TCP localport=8080 profile=any
+netsh advfirewall firewall add rule name="Chat 8080 Out" dir=out action=allow protocol=TCP localport=8080 profile=any
+
+Levantar servidor en Ubuntu (servidor)
+En Ubuntu del servidor:
+
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+./bin/chat_server 8080
+
+Probar puerto desde Windows cliente
+En PowerShell del cliente:
+
+Test-NetConnection 192.168.50.10 -Port 8080
+
+Esperado:
+
+InterfaceAlias: Ethernet
+
+SourceAddress: 192.168.50.11
+
+TcpTestSucceeded: True
+
+Conectar cliente en Ubuntu cliente
+En Ubuntu cliente:
+
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+
+Puntos clave que te estaban pegando
+
+Test-NetConnection no existe en Ubuntu ni en CMD, solo en PowerShell.
+Tú sí lo corriste bien al final en PowerShell, y ahí se vio claramente que estaba saliendo por Wi-Fi.
+Mientras salga por 192.168.5.x, jamás llegará a 192.168.50.10.
+Si después de este reset aún falla, pásame solo estas 6 salidas y te digo exactamente el siguiente comando:
+
+ipconfig del servidor
+ipconfig del cliente
+ping 192.168.50.10 desde cliente PowerShell
+Test-NetConnection 192.168.50.10 -Port 8080 desde cliente PowerShell
+netsh interface portproxy show all en servidor
+wsl -d Ubuntu -- ip -4 addr show eth0 en servidor
+
+
+Run this on both PCs in PowerShell as Administrator to re-enable everything quickly:
+
+Enable all disabled adapters
+Get-NetAdapter | Where-Object Status -eq Disabled | Enable-NetAdapter -Confirm:$false
+
+Also explicitly enable common ones (safe if names do not exist)
+Enable-NetAdapter -Name "Ethernet","Wi-Fi","Wi-Fi 2","Wi-Fi 3","Wi-Fi 4" -Confirm:$false -ErrorAction SilentlyContinue
+
+Verify adapter status
+Get-NetAdapter | Sort-Object Name | Format-Table Name, Status, LinkSpeed, InterfaceDescription -AutoSize
+
+If you also want to restore normal internet behavior (DHCP) after your static-IP tests:
+
+Set Ethernet back to DHCP
+netsh interface ipv4 set address name="Ethernet" source=dhcp
+netsh interface ipv4 set dnsservers name="Ethernet" source=dhcp
+
+Set Wi-Fi back to DHCP
+netsh interface ipv4 set address name="Wi-Fi" source=dhcp
+netsh interface ipv4 set dnsservers name="Wi-Fi" source=dhcp
+
+If one adapter still stays disabled, send me this output and I will give you exact per-adapter commands:
+Get-NetAdapter -IncludeHidden | Sort-Object Name | Format-List Name, Status, InterfaceDescription, ifIndex
+
+
+You already enabled everything important.
+
+From your output:
+
+Ethernet is Up.
+Wi-Fi is Up.
+vEthernet (WSL) is Up.
+Wi-Fi 2 = Not Present (cannot be enabled, that is normal).
+Wi-Fi 4 = Disconnected (enabled but not connected, also normal).
+So the adapter-enable part is done.
+
+Now the fix is routing and IP assignment (with all adapters still enabled).
+
+On server Windows PowerShell (Admin):
+On client Windows PowerShell (Admin):
+On server Windows PowerShell (Admin), rebuild WSL forward:
+On server Windows PowerShell (Admin), firewall:
+Validate from client PowerShell:
+Expected:
+
+Ping succeeds.
+
+TcpTestSucceeded = True.
+
+InterfaceAlias should be Ethernet (not Wi-Fi).
+
+Run chat:
+
+Server Ubuntu:
+Client Ubuntu:
+If it still fails, send only these 3 outputs and I will give the exact one-line correction:
+
+Client PowerShell: Test-NetConnection 192.168.50.10 -Port 8080
+Client PowerShell: Get-NetIPAddress -InterfaceAlias Ethernet -AddressFamily IPv4
+Server PowerShell: netsh interface portproxy show all
+
+
+El problema ya está aislado con total claridad: en la PC cliente no existe adaptador Ethernet físico activo, solo Wi-Fi y vEthernet de WSL.
+Por eso tu comando con nombre Ethernet falla, y además terminaste poniendo 192.168.50.11 en vEthernet, que no sirve para llegar a otra PC.
+
+Haz esto exacto.
+
+1. Limpia la configuración incorrecta en CLIENTE (PowerShell Admin)
+No uses WSL para esto.
+
+netsh interface ipv4 set address name="vEthernet (WSL (Hyper-V firewall))" source=dhcp
+netsh interface ipv4 set dnsservers name="vEthernet (WSL (Hyper-V firewall))" source=dhcp
+Get-NetAdapter | Sort-Object Name | Format-Table Name, Status, LinkSpeed -AutoSize
+ipconfig
+
+Objetivo:
+
+vEthernet vuelve a 172.x.x.x.
+No debe quedar 192.168.50.11 en vEthernet.
+2. Decide modo de conexión real (ahora mismo solo tienes Wi-Fi en cliente)
+
+Tienes dos caminos válidos:
+
+Prueba inmediata por Wi-Fi (recomendado para salir hoy).
+Prueba por cable Ethernet (solo si conectas adaptador RJ45 al cliente).
+Como tu cliente no tiene Ethernet operativo, usa Wi-Fi para probar ya.
+
+3. Configura SERVIDOR para aceptar conexiones por su IP de Wi-Fi (PowerShell Admin del servidor)
+
+Primero, toma IP de Ubuntu WSL:
+$wslIp = (wsl -d Ubuntu -- hostname -I).Trim().Split(" ")[0]
+
+Recrea portproxy:
+netsh interface portproxy reset
+netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=8080 connectaddress=$wslIp connectport=8080
+netsh interface portproxy show all
+
+Abre firewall:
+netsh advfirewall firewall add rule name="Chat 8080 In" dir=in action=allow protocol=TCP localport=8080 profile=any
+
+Saca la IP Wi-Fi del servidor:
+ipconfig
+
+Usa la IPv4 de Wi-Fi del servidor (por ejemplo 192.168.5.80).
+
+4. Levanta servidor en Ubuntu del servidor
+
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+./bin/chat_server 8080
+
+Déjalo corriendo, no lo cierres con Ctrl+C.
+
+5. Prueba red desde CLIENTE Windows PowerShell
+
+ping IP_WIFI_DEL_SERVIDOR
+Test-NetConnection IP_WIFI_DEL_SERVIDOR -Port 8080
+
+Objetivo:
+
+PingSucceeded True.
+TcpTestSucceeded True.
+6. Conecta cliente desde Ubuntu cliente
+
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana IP_WIFI_DEL_SERVIDOR 8080
+
+Ejemplo si el servidor Wi-Fi es 192.168.5.80:
+./bin/chat_client Ana 192.168.5.80 8080
+
+7. Si necesitas hacerlo por cable (192.168.50.x), requisito indispensable
+Debes tener adaptador Ethernet físico en cliente.
+Hasta que Get-NetAdapter muestre Ethernet, no podrás usar 192.168.50.11 en esa PC.
+
+Si tras esto sigue fallando, pásame solo estas 4 salidas y te doy el siguiente comando exacto:
+
+Cliente PowerShell: ipconfig
+Cliente PowerShell: Test-NetConnection IP_WIFI_DEL_SERVIDOR -Port 8080
+Servidor PowerShell: netsh interface portproxy show all
+Servidor Ubuntu (con server corriendo): ss -ltnp | grep 8080
+
+
+Reset completo y arranque desde cero, orientado a switch y cable USB-Ethernet.
+
+Haz esto en orden exacto.
+
+Reset base en ambas PCs (PowerShell como Administrador)
+No correr en Ubuntu, no correr en CMD.
+
+Get-NetAdapter | Where-Object Status -eq "Disabled" | Enable-NetAdapter -Confirm:$false
+
+Get-NetAdapter | Where-Object Name -like "Wi-Fi*" | ForEach-Object {
+netsh interface ipv4 set address name="
+(
+(.Name)" source=dhcp
+netsh interface ipv4 set dnsservers name="
+(
+(.Name)" source=dhcp
+}
+
+netsh interface ipv4 set address name="vEthernet (WSL (Hyper-V firewall))" source=dhcp
+netsh interface ipv4 set dnsservers name="vEthernet (WSL (Hyper-V firewall))" source=dhcp
+
+ipconfig
+
+Objetivo aquí:
+
+Wi-Fi limpio en DHCP.
+
+vEthernet limpio en 172.x.x.x.
+
+Nada de 192.168.50.x en vEthernet.
+
+Conecta la red física por switch
+
+Servidor: cable RJ45 directo al switch.
+
+Cliente: USB-Ethernet adaptador conectado al switch.
+
+Espera 10-15 segundos y verifica que Windows detecte el adaptador.
+
+Identifica el nombre exacto del adaptador cableado en cada PC
+En ambas PCs:
+
+Get-NetAdapter -Physical | Sort-Object Name | Format-Table Name, Status, LinkSpeed, InterfaceDescription -AutoSize
+
+Importante:
+
+Usa el nombre exacto del adaptador cableado que esté Up.
+
+No uses Wi-Fi.
+
+No uses vEthernet.
+
+Desactiva Wi-Fi en ambas PCs para evitar rutas raras
+En ambas PCs:
+
+Get-NetAdapter | Where-Object Name -like "Wi-Fi*" | Disable-NetAdapter -Confirm:$false
+
+Asigna IP estática solo al adaptador cableado real
+Servidor (cambia ADAPTADOR_SERVER por el nombre real, por ejemplo Ethernet):
+
+netsh interface ipv4 set address name="ADAPTADOR_SERVER" static 192.168.50.10 255.255.255.0
+
+Cliente (cambia ADAPTADOR_CLIENTE por el nombre real, por ejemplo Ethernet 2 o USB Ethernet):
+
+Si sale No se ha encontrado el elemento, el nombre está mal. Vuelve al paso 3 y copia el alias exacto.
+
+Verificación de capa de red antes de WSL
+Cliente PowerShell:
+
+ping 192.168.50.10
+
+Servidor PowerShell:
+
+Si esto falla, aún no sirve chat ni portproxy. Primero debe funcionar ping entre ambas PCs por cable.
+
+Limpia reglas viejas y crea forwarding en servidor Windows
+Servidor PowerShell (Admin):
+
+netsh interface portproxy reset
+
+$wslIp = (wsl -d Ubuntu -- hostname -I).Trim().Split(" ")[0]
+netsh interface portproxy add v4tov4 listenaddress=192.168.50.10 listenport=8080 connectaddress=$wslIp connectport=8080
+netsh interface portproxy show all
+
+netsh advfirewall firewall add rule name="Chat 8080 In" dir=in action=allow protocol=TCP localport=8080 profile=any
+
+Levanta servidor en Ubuntu servidor
+En Ubuntu servidor:
+
+cd /mnt/c/Users/rjbar/OneDrive/Documents/GitHub/PRY01-OS1
+./bin/chat_server 8080
+
+Déjalo corriendo.
+
+Prueba puerto desde cliente Windows
+Cliente PowerShell:
+
+Test-NetConnection 192.168.50.10 -Port 8080
+
+Debe dar:
+
+TcpTestSucceeded = True
+
+InterfaceAlias del adaptador cableado, no Wi-Fi
+
+Conecta cliente desde Ubuntu cliente
+En Ubuntu cliente:
+
+cd /mnt/c/Users/Roberto/Documents/GitHub/PRY01-OS1
+./bin/chat_client Ana 192.168.50.10 8080
+
+Si algo falla, mándame solo estas 4 salidas y te doy la corrección exacta en una sola línea:
+
+Get-NetAdapter -Physical | ft Name,Status,LinkSpeed,InterfaceDescription -AutoSize (en cliente)
+ipconfig (en cliente)
+netsh interface portproxy show all (en servidor)
+Test-NetConnection 192.168.50.10 -Port 8080 (en cliente)
