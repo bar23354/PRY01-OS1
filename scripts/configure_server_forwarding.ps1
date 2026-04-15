@@ -21,10 +21,14 @@ if ($service.Status -ne "Running") {
     Start-Service iphlpsvc
 }
 
-$wslIp = (wsl.exe -d $Distro bash -lc "hostname -I | awk '{print \$1}'").Trim()
-if ([string]::IsNullOrWhiteSpace($wslIp)) {
+$wslIpRaw = wsl.exe -d $Distro -- hostname -I 2>$null
+$wslIpText = ($wslIpRaw | Out-String).Trim()
+
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($wslIpText)) {
     throw "No pude obtener la IP de WSL para la distro '$Distro'."
 }
+
+$wslIp = ($wslIpText -split '\s+')[0]
 
 $adapter = Get-NetAdapter -Name $AdapterAlias -ErrorAction SilentlyContinue
 if (-not $adapter) {
