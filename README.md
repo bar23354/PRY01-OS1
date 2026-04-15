@@ -74,6 +74,15 @@ Modo pruebas local (permite varios clientes desde la misma IP):
 CHAT_ALLOW_SAME_IP=1 ./bin/chat_server <puerto>
 ```
 
+Nota para pruebas en varias PCs cuando el servidor corre dentro de WSL y se
+expone con `portproxy` de Windows:
+
+- El servidor en WSL puede ver todas las conexiones entrantes con la misma IP
+  interna del host o gateway de WSL.
+- En ese escenario, la validacion de "una sola conexion por IP" puede bloquear
+  clientes que en realidad vienen de computadoras distintas.
+- Si eso ocurre, levanta el servidor con `CHAT_ALLOW_SAME_IP=1`.
+
 2. Conectar clientes (en otras terminales):
 
 ```bash
@@ -89,10 +98,10 @@ Ejemplo local:
 
 ## Comandos del cliente
 
-- `/broadcast <mensaje>`
+- `/broadcast <mensaje>` o `/message <mensaje>`
 - `/msg <usuario> <mensaje>`
 - `/status <ACTIVO|OCUPADO|INACTIVO>`
-- `/list`
+- `/list` o `/lis`
 - `/info <usuario>`
 - `/help`
 - `/quit`

@@ -18,6 +18,14 @@ En ambas PCs:
 Get-NetAdapter -Physical | Sort-Object Name | Format-Table Name,Status,LinkSpeed,InterfaceDescription -AutoSize
 ```
 
+No uses adaptadores virtuales como estos aunque el nombre diga `Ethernet` o `Ethernet 2`:
+
+- `VirtualBox Host-Only Ethernet Adapter`
+- `vEthernet (WSL (Hyper-V firewall))`
+- adaptadores VPN
+
+Usa solo el adaptador fisico que corresponde al puerto RJ45 o al adaptador USB-Ethernet real.
+
 4. Si Wi-Fi sigue activo, desactivalo temporalmente para que no se use otra ruta:
 
 ```powershell

@@ -3,8 +3,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 #include "server.h"
+
+static int is_valid_ipv4(const char *ip) {
+    struct in_addr addr;
+    return ip && inet_pton(AF_INET, ip, &addr) == 1;
+}
 
 void *inactivity_checker(void *arg) {
     (void)arg;
@@ -83,9 +89,15 @@ void *handle_client(void *arg) {
 
         if (strcmp(cmd, "REGISTER") == 0) {
             char *name = strtok(NULL, "|");
+            char *reported_ip = strtok(NULL, "|");
             if (!name || strlen(name) == 0) {
                 send_to_client(sockfd, "ERROR|REGISTER|BAD_FORMAT\n");
                 continue;
+            }
+
+            const char *effective_ip = clients[slot].ip;
+            if (is_valid_ipv4(reported_ip)) {
+                effective_ip = reported_ip;
             }
 
             pthread_mutex_lock(&clients_mutex);
@@ -101,7 +113,7 @@ void *handle_client(void *arg) {
                 !(allow_same_ip && strcmp(allow_same_ip, "1") == 0);
 
             if (enforce_unique_ip) {
-                int ip_idx = find_client_by_ip(clients[slot].ip);
+                int ip_idx = find_client_by_ip(effective_ip);
                 if (ip_idx >= 0 && ip_idx != slot) {
                     pthread_mutex_unlock(&clients_mutex);
                     send_to_client(sockfd,
@@ -112,6 +124,8 @@ void *handle_client(void *arg) {
 
             strncpy(clients[slot].username, name, USERNAME_MAX - 1);
             clients[slot].username[USERNAME_MAX - 1] = '\0';
+            strncpy(clients[slot].ip, effective_ip, INET_ADDRSTRLEN - 1);
+            clients[slot].ip[INET_ADDRSTRLEN - 1] = '\0';
             clients[slot].status = STATUS_ACTIVO;
             clients[slot].last_activity = time(NULL);
             registered = 1;
